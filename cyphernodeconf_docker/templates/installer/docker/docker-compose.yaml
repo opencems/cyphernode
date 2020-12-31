@@ -2,6 +2,48 @@ version: "3"
 
 services:
 
+  ##########################
+  # CYPHERNODE ADMIN       #
+  ##########################
+  cyphernodeadmin:
+    hostname: cyphernodeadmin
+    image: traefikauthtest/cyphernodeadmin:latest
+    <% if (docker_mode == 'compose') { %>
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.cyphernodeadmin.rule=PathPrefix(`/admin`)
+      # - traefik.http.routers.cyphernodeadmin.tls=false
+      - traefik.http.routers.cyphernodeadmin.entrypoints=web
+      - traefik.http.routers.cyphernodeadmin.service=cyphernodeadmin
+      - traefik.http.routers.cyphernodeadmin.middlewares=cyphernodeadmin-stripprefix@docker
+      - traefik.http.services.cyphernodeadmin.loadbalancer.server.port=3030
+      - traefik.http.middlewares.cyphernodeadmin-stripprefix.stripprefix.prefixes=/admin,/admin/
+      - traefik.http.middlewares.cyphernodeadmin-stripprefix.stripprefix.forceSlash=true
+    restart: always
+    <% } else { %>
+    deploy:
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.cyphernodeadmin.rule=PathPrefix(`/admin`)
+        # - traefik.http.routers.cyphernodeadmin.tls=false
+        - traefik.http.routers.cyphernodeadmin.entrypoints=web
+        - traefik.http.routers.cyphernodeadmin.service=cyphernodeadmin
+        - traefik.http.routers.cyphernodeadmin.middlewares=cyphernodeadmin-stripprefix@docker
+        - traefik.http.services.cyphernodeadmin.loadbalancer.server.port=3030
+        - traefik.http.middlewares.cyphernodeadmin-stripprefix.stripprefix.prefixes=/admin,/admin/
+        - traefik.http.middlewares.cyphernodeadmin-stripprefix.stripprefix.forceSlash=true
+      restart_policy:
+        condition: any
+    <% } %>
+    environment:
+      # - GIN_MODE=release
+      - CYPHERAPPS_INSTALL_DIR=/apps
+    networks:
+      - cyphernodeappsnet
+    volumes:
+      - "${PWD}/apps:/apps"
+      - "<%= admin_datapath %>:/data"
+
   <% if ( features.indexOf('tor') !== -1 ) { %>
   ##########################
   # TOR                    #
@@ -24,6 +66,10 @@ services:
       - cyphernodeappsnet
     <% if (docker_mode == 'compose') { %>
     restart: always
+    <% } else { %>
+    deploy:
+      restart_policy:
+        condition: any
     <% } %>
 #    deploy:
 #      placement:
@@ -56,6 +102,10 @@ services:
       - cyphernodenet
     <% if (docker_mode == 'compose') { %>
     restart: always
+    <% } else { %>
+    deploy:
+      restart_policy:
+        condition: any
     <% } %>
     <% if ( features.indexOf('tor') !== -1 ) { %>
     depends_on:
@@ -95,6 +145,10 @@ services:
       - cyphernodenet
     <% if (docker_mode == 'compose') { %>
     restart: always
+    <% } else { %>
+    deploy:
+      restart_policy:
+        condition: any
     <% } %>
     <% if ( features.indexOf('tor') !== -1 ) { %>
     depends_on:
@@ -155,6 +209,10 @@ services:
       - cyphernodenet
     <% if (docker_mode == 'compose') { %>
     restart: always
+    <% } else { %>
+    deploy:
+      restart_policy:
+        condition: any
     <% } %>
 #    deploy:
 #      placement:
@@ -173,6 +231,10 @@ services:
       - cyphernodenet
     <% if (docker_mode == 'compose') { %>
     restart: always
+    <% } else { %>
+    deploy:
+      restart_policy:
+        condition: any
     <% } %>
     depends_on:
       - proxy
@@ -191,6 +253,10 @@ services:
       - cyphernodeappsnet
     <% if (docker_mode == 'compose') { %>
     restart: always
+    <% } else { %>
+    deploy:
+      restart_policy:
+        condition: any
     <% } %>
 #    deploy:
 #      placement:
@@ -215,6 +281,10 @@ services:
       - cyphernodeappsnet
     <% if (docker_mode == 'compose') { %>
     restart: always
+    <% } else { %>
+    deploy:
+      restart_policy:
+        condition: any
     <% } %>
     depends_on:
       - broker
@@ -242,6 +312,10 @@ services:
       - cyphernodenet
     <% if (docker_mode == 'compose') { %>
     restart: always
+    <% } else { %>
+    deploy:
+      restart_policy:
+        condition: any
     <% } %>
 #    deploy:
 #      placement:
@@ -269,11 +343,14 @@ services:
       - "<%= logs_datapath %>:/cnlogs"
       - "<%= otsclient_datapath %>:/otsfiles"
       - "<%= bitcoin_datapath %>/bitcoin-client.conf:/.bitcoin/bitcoin.conf:ro"
-    command: $USER /script/startotsclient.sh
     networks:
       - cyphernodenet
     <% if (docker_mode == 'compose') { %>
     restart: always
+    <% } else { %>
+    deploy:
+      restart_policy:
+        condition: any
     <% } %>
 #    deploy:
 #      placement:
@@ -310,6 +387,10 @@ services:
       - cyphernodeappsnet
     <% if (docker_mode == 'compose') { %>
     restart: always
+    <% } else { %>
+    deploy:
+      restart_policy:
+        condition: any
     <% } %>
     depends_on:
       - proxy
@@ -326,15 +407,21 @@ services:
     ports:
       - <%= traefik_http_port %>:<%= traefik_http_port %>
       - <%= traefik_https_port %>:<%= traefik_https_port %>
+      # TODO: remove later or protect
+      - 8080:8080
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
-      - "<%= traefik_datapath%>/traefik.toml:/traefik.toml:ro"
-      - "<%= traefik_datapath%>/acme.json:/acme.json"
+      - "<%= traefik_datapath%>/traefik.toml:/etc/traefik/traefik.toml:ro"
+      - "<%= traefik_datapath%>/acme.json:/etc/traefik/acme.json"
       - "<%= traefik_datapath%>/htpasswd:/htpasswd/htpasswd:ro"
     networks:
       - cyphernodeappsnet
     <% if (docker_mode == 'compose') { %>
     restart: always
+    <% } else { %>
+    deploy:
+      restart_policy:
+          condition: any
     <% } %>
     depends_on:
       - gatekeeper
