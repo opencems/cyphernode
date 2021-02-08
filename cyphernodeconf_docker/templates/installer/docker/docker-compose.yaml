@@ -9,6 +9,10 @@ services:
     hostname: cyphernodeadmin
     image: cyphernode/cyphernodeadmin:<%= admin_version %>
 
+    ### TODO: use su-exec $USER
+
+
+
     <% if ( features.indexOf('tor') !== -1 && torifyables && torifyables.indexOf('tor_traefik') !== -1 ) { %>
     command: sh -c 'while [ ! -f "/container_monitor/bitcoin_ready" ] || [ ! -f "/container_monitor/tor_ready" ]; do echo "waitng for core services" ; sleep 10 ; done ; echo "...ok" ; exec /app/cyphernode_admin'
     <% } else { %>
@@ -77,7 +81,7 @@ services:
 
     depends_on:
       - bitcoin
-      - gatekeeper
+#      - gatekeeper
       - proxy
 
   <% if ( features.indexOf('tor') !== -1 ) { %>
@@ -198,6 +202,9 @@ services:
   ##########################
   # PROXY                  #
   ##########################
+
+  ### TODO: create proxy_ready file
+
 
   proxy:
     image: cyphernode/proxy:<%= proxy_version %>
@@ -398,52 +405,25 @@ services:
   ##########################
 
   gatekeeper:
-    # HTTP authentication API gate
-    image: traefik:<%= traefik_version %>
-
-    <% if( gatekeeper_expose ) { %>
-    ports:
-      - "<%= gatekeeper_port %>:<%= gatekeeper_port %>"
-    <% } %>
-    volumes:
-      - "<%= logs_datapath %>:/cnlogs"
-      - "<%= gatekeeper_datapath %>/traefik.toml:/etc/traefik/traefik.toml:ro"
-      - "<%= gatekeeper_datapath %>/certs:/etc/ssl/certs:ro"
-      - "<%= gatekeeper_datapath %>/private:/etc/ssl/private:ro"
-    networks:
-      - cyphernodenet
-      - cyphernodeappsnet
-    <% if (docker_mode == 'compose') { %>
-    restart: always
-    <% } else { %>
-    deploy:
-      restart_policy:
-        condition: any
-    <% } %>
-    depends_on:
-      - proxy
-#    deploy:
-#      placement:
-#        constraints: [node.hostname==dev]
-
-  ##########################
-  # TRAEFIK                #
-  ##########################
-
-  traefik:
     image: traefik:<%= traefik_version %>
     ports:
       - <%= traefik_http_port %>:<%= traefik_http_port %>
       - <%= traefik_https_port %>:<%= traefik_https_port %>
       # TODO: remove later or protect
       - 8080:8080
+    <% if( gatekeeper_expose ) { %>
+      - "<%= gatekeeper_port %>:<%= gatekeeper_port %>"
+    <% } %>
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
       - "<%= traefik_datapath%>/traefik.toml:/etc/traefik/traefik.toml:ro"
       - "<%= traefik_datapath%>/acme.json:/etc/traefik/acme.json"
       - "<%= traefik_datapath%>/htpasswd:/htpasswd/htpasswd:ro"
+      - "<%= gatekeeper_datapath%>/certs:/etc/ssl/certs:ro"
+      - "<%= gatekeeper_datapath%>/private:/etc/ssl/private:ro"
     networks:
       - cyphernodeappsnet
+      - cyphernodenet
     <% if (docker_mode == 'compose') { %>
     restart: always
     <% } else { %>
@@ -451,8 +431,8 @@ services:
       restart_policy:
           condition: any
     <% } %>
-    depends_on:
-      - gatekeeper
+#    depends_on:
+#      - gatekeeper
 #    deploy:
 #      placement:
 #        constraints: [node.hostname==dev]
