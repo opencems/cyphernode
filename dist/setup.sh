@@ -552,7 +552,7 @@ install_docker() {
 
   if [[ $DOCKER_MODE == 'swarm' && $noSwarm == 1 ]]; then
     step "     [32minit[0m docker swarm"
-    try docker swarm init --task-history-limit 1 > /dev/null 2>&1
+    try docker swarm init --task-history-limit 1
     next
   fi
 
